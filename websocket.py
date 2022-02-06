@@ -54,6 +54,7 @@ lock = uasyncio.Lock()
 # this array stores messages from server
 data_from_ws = []
 loop = uasyncio.get_event_loop()
+nic = network.WLAN(network.STA_IF)
 # ------------------------------------------------------------------------------
 def dd(inI):
     i=inI/100
@@ -61,6 +62,7 @@ def dd(inI):
 
 def getStatusSummary():
     global idCamera
+    global nic
     isShort=False;
     print("before RTC")
     rtc = machine.RTC()
@@ -93,7 +95,6 @@ def getStatusSummary():
     }
         #wifi info
     try:
-        nic = network.WLAN(network.STA_IF)
         rssi=nic.status("rssi") #
         ip=nic.ifconfig()[0] #(ip, subnet, gateway, dns)
         mac=getStrMAC(nic.config("mac"),"")
@@ -119,9 +120,14 @@ async def read_loop():
     global lock
     global data_from_ws
     global loop
+    global nic
 
     while True:
         gc.collect()
+        # 等待wifi链接wlan
+        if not nic.isconnected():
+            await uasyncio.sleep_ms(500)
+            continue
         try:
             # connect to test socket server with random client number
             if not await ws.handshake("ws://wx.z-core.cn:4000/?role=camera&id="+idCamera):
@@ -151,10 +157,11 @@ async def receive_loop():
     global lock
     global data_from_ws
     global ws
+    global nic
 
     # Main "work" cycle. It should be awaitable as possible.
     while True:
-        if ws is not None:
+        if nic.isconnected() and ws is not None:
             # lock data archive
             await lock.acquire()
             if data_from_ws:
