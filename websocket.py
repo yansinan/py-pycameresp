@@ -1,8 +1,8 @@
-import network as net
-import uasyncio as uasyncio
+#import network as net
+import uasyncio
 import json
-from random import randint
-from machine import Pin
+#from random import randint
+#from machine import Pin
 import machine
 import esp32 #温度，hall
 import network
@@ -64,17 +64,16 @@ def getStatusSummary():
     global idCamera
     global nic
     isShort=False;
-    print("before RTC")
     rtc = machine.RTC()
     t=rtc.datetime()
     strTimeNow=str(t[0])+dd(t[1])+dd(t[2])+"_"+dd(t[4])+":"+dd(t[5])
     print("after RTC",strTimeNow)
-    hall=esp32.hall_sensor()     # read the internal hall sensor
-    temperature=esp32.raw_temperature() # read the internal temperature of the MCU, in Fahrenheit
+    #hall=esp32.hall_sensor()   #这个会导致camera宕机，估计两种可能1.背后贴磁铁了.2.读pin导致冲突    #read the internal hall sensor
+    temperature=(esp32.raw_temperature()-32)/1.8 # read the internal temperature of the MCU, in Fahrenheit
     ''''''
     res={
         "id":idCamera,
-        "urlImgLatest":"192.168.1.159:8081/camera/start",
+        "urlImgLatest":"192.168.1.159:81/camera/start?framesize=640x480", #要小写x
         "type":"event",
         "event":"UPDATE_STATUS",
         "data":{
@@ -82,7 +81,7 @@ def getStatusSummary():
                 "vBatt":"5",
                 "time" :strTimeNow,
                 "temperature":temperature,
-                "hall":hall,
+                #"hall":hall,
             },
             "net":{
                 "state":"REGISTERED",
@@ -93,6 +92,7 @@ def getStatusSummary():
         },
         "time":strTimeNow,
     }
+    
         #wifi info
     try:
         rssi=nic.status("rssi") #
@@ -107,12 +107,23 @@ def getStatusSummary():
         print("status.data.wifi",wifi)
         res["data"]["net"]["rssi"]=rssi
         res["data"]["net"]["wifi"]=wifi
+        res["urlImgLatest"]=ip+":81/camera/start?framesize=640x480", #要小写x
     except Exception as ex:
         print("Exception:getStatusSummary {}".format(ex))
         print("no network.WLAN(network.STA_IF)")
         pass
     return res
 # ------------------------------------------------------
+# Deal with data_recv
+async def dealDataRecv(item):
+    dicItem=json.loads(item)
+    print("\nData from ws: {}".format(dicItem))
+    # 处理
+    if (dicItem["type"]=="command") and ("data" in dicItem) and (dicItem["type"] in dicItem["data"]) and (dicItem["data"][dicItem["type"]]) :
+        command = dicItem["data"][dicItem["type"]]
+        if command=="updateStatus" :
+            await ws.send(json.dumps(getStatusSummary()))
+
 # Task for read loop
 async def read_loop():
     global idCamera
@@ -123,7 +134,7 @@ async def read_loop():
     global nic
 
     while True:
-        gc.collect()
+        #gc.collect()
         # 等待wifi链接wlan
         if not nic.isconnected():
             await uasyncio.sleep_ms(500)
@@ -142,6 +153,7 @@ async def read_loop():
                     await lock.acquire()
                     data_from_ws.append(data)
                     lock.release()
+                    await dealDataRecv(data)
                 await uasyncio.sleep_ms(50)
         except Exception as ex:
             print("Exception:read_loop {}".format(ex))
@@ -153,6 +165,7 @@ async def read_loop():
 # ------------------------------------------------------
 # Main loop function: blink and send data to server.
 # This code emulates main control cycle for controller.
+''''''
 async def receive_loop():
     global lock
     global data_from_ws
@@ -166,23 +179,18 @@ async def receive_loop():
             await lock.acquire()
             if data_from_ws:
                 for item in data_from_ws:
-                    dicItem=json.loads(item)
-                    print("\nData from ws: {}".format(dicItem))
-                    # 处理
-                    if (dicItem["type"]=="command") and ("data" in dicItem) and (dicItem["type"] in dicItem["data"]) and (dicItem["data"][dicItem["type"]]) :
-                        command = dicItem["data"][dicItem["type"]]
-                        if command=="updateStatus" :
-                            await ws.send(json.dumps(getStatusSummary()))
+                    await dealDataRecv(data)
                 data_from_ws = []
             lock.release()
-            gc.collect()
+            #gc.collect()
 
         await uasyncio.sleep_ms(400)
+
 # ------------------------------------------------------
 def start(loop):    
     loop.create_task(read_loop())
-    loop.create_task(receive_loop())
-    print("websocket start 2 tasks")
+    #loop.create_task(receive_loop())
+    print("websocket start read_loop")
     
 async def main():    
     tasks = [read_loop(),receive_loop()]
