@@ -26,6 +26,7 @@ class CameraConfig(jsonconfig.JsonConfig):
 		self.hmirror    = False
 		self.vflip      = False
 		self.flash_level = 0
+		self.xclk_freq_hz=10000000 #10000000 or 20000000
 
 class Motion:
 	""" Class motion detection returned by the detect function """
@@ -144,17 +145,18 @@ class Camera:
 	@staticmethod
 	def open():
 		""" Open the camera """
-		Camera.get_config()
 		if Camera.is_activated():
 			result = True
+			print(Camera.getFRAMESIZE(Camera.config.framesize),Camera.getPIXFORMAT(Camera.config.pixformat),Camera.config.xclk_freq_hz);
 			if Camera.opened is False:
 				for i in range(10):
-					res = camera.init()
+					res = camera.init(Camera.getFRAMESIZE(Camera.config.framesize),Camera.getPIXFORMAT(Camera.config.pixformat),Camera.config.xclk_freq_hz)
 					if res is False:
-						# print("Camera not initialized")
+						print("Camera not initialized")
 						camera.deinit()
 						time.sleep(0.5)
 					else:
+						Camera.configure(Camera.get_config())
 						break
 				else:
 					result = False
@@ -261,10 +263,8 @@ class Camera:
 		Camera.modified[0] = False
 
 	@staticmethod
-	def framesize(resolution):
-		""" Configure the frame size """
+	def getFRAMESIZE(resolution):
 		val = None
-		Camera.modified[0] = True
 		if resolution == b"UXGA"  or resolution == b"1600x1200" :val = camera.FRAMESIZE_UXGA
 		if resolution == b"SXGA"  or resolution == b"1280x1024" :val = camera.FRAMESIZE_SXGA
 		if resolution == b"XGA"   or resolution == b"1024x768"  :val = camera.FRAMESIZE_XGA
@@ -274,16 +274,20 @@ class Camera:
 		if resolution == b"QVGA"  or resolution == b"320x240"   :val = camera.FRAMESIZE_QVGA
 		if resolution == b"HQVGA" or resolution == b"240x176"   :val = camera.FRAMESIZE_HQVGA
 		if resolution == b"QQVGA" or resolution == b"160x120"   :val = camera.FRAMESIZE_QQVGA
+		return val
+
+	@staticmethod
+	def framesize(resolution):
+		""" Configure the frame size """
+		Camera.modified[0] = True
+		val=getFRAMESIZE(resolution)
 		if Camera.opened and val is not None:
 			# print("Framesize %s"%useful.tostrings(resolution))
 			camera.framesize(val)
 		# else:
 			# print("Framesize not set")
-
 	@staticmethod
-	def pixformat(format_):
-		""" Change the format of image """
-		Camera.modified[0] = True
+	def getPIXFORMAT(format_):	
 		val = None
 		if format_ == b"RGB565"    : val=camera.PIXFORMAT_RGB565
 		if format_ == b"YUV422"    : val=camera.PIXFORMAT_YUV422
@@ -293,6 +297,13 @@ class Camera:
 		if format_ == b"RAW"       : val=camera.PIXFORMAT_RAW
 		if format_ == b"RGB444"    : val=camera.PIXFORMAT_RGB444
 		if format_ == b"RGB555"    : val=camera.PIXFORMAT_RGB555
+		return val
+
+	@staticmethod
+	def pixformat(format_):
+		""" Change the format of image """
+		Camera.modified[0] = True
+		val=Camera.getPIXFORMAT(format_)
 		if Camera.opened and val is not None:
 			# print("Pixformat %s"%useful.tostrings(format_))
 			camera.pixformat(val)
@@ -375,7 +386,9 @@ class Camera:
 			Camera.hmirror   (config.hmirror)
 			Camera.vflip     (config.vflip)
 			Camera.flash     (config.flash_level)
-
+	@staticmethod
+	def load_config():
+		Camera.get_config()
 	@staticmethod
 	def get_config():
 		""" Reload configuration if it changed """
