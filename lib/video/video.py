@@ -7,7 +7,8 @@ as well as a lot of adjustment on the camera, not available on the other firmwar
 """
 # pylint: disable=multiple-statements
 import time
-import camera
+# import camera
+import esp_camera as camera
 import uasyncio
 from tools import useful,jsonconfig
 
@@ -410,3 +411,4 @@ class Camera:
 			return Camera.config.activated
 		else:
 			return False
+
