@@ -1,5 +1,8 @@
 # Distributed under MIT License
 # Copyright (c) 2021 Remi BERTHOLET
+""" Main pycameresp module """
+# pylint:disable=wrong-import-position
+# pylint:disable=wrong-import-order
 import sys
 try:
 	import uasyncio
@@ -10,78 +13,58 @@ sys.path.append("sample")
 import uasyncio
 import machine
 from tools.battery import Battery
+from tools.awake import Awake
+from tools.useful import iscamera, syslog, reboot
 
+# Force high frequency of esp32
 machine.freq(240000000)
 
-# Can only be done once at boot before start the camera and sd card
-onBattery   = Battery.isActivated()
+# Check the battery level and force deepsleep is to low
+Battery.protect()
 
-# If the power supply is the mains
-if onBattery == False:
-	from tools import useful
-	isPinWakeUp = False
+# Can only be done once at boot before start of the camera and sd card
+pinWakeUp = Awake.is_pin_wake_up()
 
-	# Create asyncio loop
-	loop = uasyncio.get_event_loop()
+def html_page_loader():
+	""" Html pages loader """
+	# pylint: disable=unused-import
+	# pylint: disable=redefined-outer-name
 
-	# Html pages loader
-	def pageLoader():
-		# The html pages only loaded when the connection of http server is done
-		# This reduces memory consumption if the server is not used
-		import webpage
-		from server.httpserver import HttpServer
+	# The html pages only loaded when the connection of http server is done
+	# This reduces memory consumption if the server is not used
+	import webpage
 
-		try:
-			# Welcome page (can be suppressed)
-			from welcome import welcomePage
-		except ImportError as err:
-			pass
+	try:
+		# Sample page (can be suppressed)
+		import sample
+	except ImportError as err:
+		pass
 
-		try:
-			# Sample page (can be suppressed)
-			import sample
-		except ImportError as err:
-			pass
+# Create asyncio loop
+loop = uasyncio.get_event_loop()
 
-	import server
-
-	# Start all server (Http, Ftp, Telnet) and start wifi manager
-	# If you set the last parameter to True it preloads the pages of the http server at startup
-	server.start(loop, pageLoader, False)
-	isPinWakeUp = False
-else:
-	# Check if PIR detection
-	isPinWakeUp = Battery.isPinWakeUp()
-	print("Detection %s"%(isPinWakeUp))
-
-	# Check the battery level and force deepsleep is to low
-	Battery.protect()
-
-	# Create asyncio loop
-	loop = uasyncio.get_event_loop()
-
-	from tools import useful
-
+# Start all servers Http, Ftp, Telnet and wifi manager
+import server
+server.init(loop=loop, page_loader=html_page_loader,preload=True)
 
 # If camera is available (required specific firmware)
-if useful.iscamera():
-	# Start motion detection (only used with ESP32CAM)
-	import motion 
-	motion.start(loop, onBattery, isPinWakeUp)
+if iscamera():
+	# Start motion detection (can be only used with ESP32CAM)
+	import motion
+	motion.start(loop, pinWakeUp)
+
+# Add shell asynchronous task (press any key to get shell prompt)
+#from shell.shell import async_shell
+#loop.create_task(async_shell())
 #增加websocket服务
-import websocket
-websocket.start(loop)
-# Run asyncio for ever
-while True:
-	try:
-		loop.run_forever()
-	except KeyboardInterrupt:
-		print("Server interrupted")
-	import sys
-	try:
-		del sys.modules["shell"]
-	except:
-		pass
-	import shell
-	print ("Restart server")
-''''''
+from WSCamera import WSCamera
+# create instance of websocket 
+ws = WSCamera("ws://wx.z-core.cn:4000",5)
+try:
+	# Run asyncio for ever
+	loop.run_forever()
+except KeyboardInterrupt:
+	syslog("Control C in main")
+except Exception as err:
+	syslog(err)
+	reboot("Crash in main")
