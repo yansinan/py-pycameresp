@@ -7,7 +7,7 @@ as well as a lot of adjustment on the camera, not available on the other firmwar
 """
 # pylint: disable=multiple-statements
 import time
-# import camera
+import camera as motion
 import esp_camera as camera
 import uasyncio
 from tools import useful,jsonconfig
@@ -151,7 +151,7 @@ class Camera:
 			print(Camera.getFRAMESIZE(Camera.config.framesize),Camera.getPIXFORMAT(Camera.config.pixformat),Camera.config.xclk_freq_hz);
 			if Camera.opened is False:
 				for i in range(10):
-					res = camera.init(Camera.getFRAMESIZE(Camera.config.framesize),Camera.getPIXFORMAT(Camera.config.pixformat),Camera.config.xclk_freq_hz)
+					res = camera.init(Camera.getFRAMESIZE(Camera.config.framesize),Camera.getPIXFORMAT(Camera.config.pixformat),Camera.config.xclk_freq_hz,0,False)
 					if res is False:
 						print("Camera not initialized")
 						camera.deinit()
@@ -201,8 +201,33 @@ class Camera:
 	@staticmethod
 	def motion():
 		""" Get the motion informations.
-		This contains a jpeg image, with matrices of the different color RGB """
-		return Camera.retry(camera.motion)
+		This contains a jpeg image, with matrices of the different color RGB """ 
+		image=Camera.retry(camera.capture);
+		return motion.feed(image);
+		'''
+		image=None;
+		cntTry=0;
+		while True:
+			image=camera.capture()
+			if(not image):
+				print("retry capture for 5 times,reinit","framesize:",camera.framesize(),camera.pixformat())
+				time.sleep(5)
+				camera.init();
+			elif cntTry>5 :
+				print("retry capture for 5 times,reinit","framesize:",camera.framesize())
+				camera.init(camera.framesize(),camera.pixformat(),10000000,0,True);
+			else:
+				break;
+			cntTry+=1
+		return motion.feed(image);
+		'''
+		'''
+		if image:
+			return motion.feed(image);
+		else :
+			return motion.feed,image);
+		'''
+
 
 	@staticmethod
 	def flash(level=0):
@@ -223,10 +248,15 @@ class Camera:
 					Camera.success[0] += 1
 					break
 				except ValueError:
+					useful.syslog("Failed to get image for ValueError\n reinit esp_camera now....")
+					camera.init();
+					time.sleep(0.5)
+				except RuntimeError:
 					Camera.failed[0] += 1
 					Camera.newFailed[0] += 1
-					if retry <= 3:
-						useful.syslog("Failed to get image %d retry before reset"%retry)
+					if retry % 2 ==0 :
+						useful.syslog("Failed to get image for 2RuntimeError\n reinit esp_camera now \n %d retry before restart"%retry)
+						camera.init();
 					retry -= 1
 					time.sleep(0.5)
 			total = Camera.success[0] + Camera.failed[0]
@@ -281,7 +311,7 @@ class Camera:
 	def framesize(resolution):
 		""" Configure the frame size """
 		Camera.modified[0] = True
-		val=getFRAMESIZE(resolution)
+		val=Camera.getFRAMESIZE(resolution)
 		if Camera.opened and val is not None:
 			# print("Framesize %s"%useful.tostrings(resolution))
 			camera.framesize(val)
