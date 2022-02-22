@@ -255,6 +255,7 @@ class Motion:
 	def resume(self):
 		""" Resume the camera, restore the camera configuration after an interruption """
 		video.Camera.framesize(b"%dx%d"%(SnapConfig.get().width, SnapConfig.get().height))
+		print("[motion.resume]",b"%dx%d"%(SnapConfig.get().width, SnapConfig.get().height))
 		video.Camera.pixformat(b"JPEG")
 		video.Camera.quality(self.quality)
 		video.Camera.brightness(0)
@@ -263,7 +264,6 @@ class Motion:
 		video.Camera.hmirror(0)
 		video.Camera.vflip(0)
 		video.Camera.flash(self.flash_level)
-
 		detected, change_polling = self.detect(False)
 		if detected is False:
 			self.cleanup()
@@ -724,5 +724,8 @@ class NotificationCadencer(MovingCounters):
 
 async def detect_motion(pir_detection):
 	""" Asynchronous motion detection main routine """
+	#await uasyncio.sleep_ms(15000) #等待开机
+	from server.server import Server
+	await Server.wait_resume(20) #服务器恢复后1s
 	detection = Detection(pir_detection)
 	await detection.run()
