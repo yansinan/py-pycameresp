@@ -56,6 +56,7 @@ motion_detection_sensitivity            =b"R\xC3\xA9gler la sensibilit\xC3\xA9 \
 notification                            =b"Notifier"
 notification_motion                     =b"Notifier d\xC3\xA9tection de mouvement"
 notification_state                      =b"Notifier changement \xC3\xA9tat"
+save_image                              =b"Save image to SDcard or OOS"
 suspends_motion_detection               =b"Suspendre la d\xC3\xA9tection de mouvement en pr\xC3\xA9sence d'occupants"
 turn_on_flash                           =b"Allumer le flash LED lorsque la lumi\xC3\xA8re baisse"
 pushover_on                             =b"Notification pushover activ\xC3\xA9e"

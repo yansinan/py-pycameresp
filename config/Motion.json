@@ -1,1 +1,1 @@
-{"threshold_glitch": 2, "mask": "", "max_motion_images": 10, "threshold_motion": 3, "sensitivity": 80, "differences_detection": 4, "stabilization_camera": 8, "notify_state": true, "activated": true, "light_compensation": true, "notify": true, "suspend_on_presence": true}
+{"threshold_glitch": 2, "mask": "", "max_motion_images": 10, "threshold_motion": 3, "sensitivity": 80, "differences_detection": 4,"save_image": false, "stabilization_camera": 8, "notify_state": true, "activated": true, "light_compensation": true, "notify": true, "suspend_on_presence": true}

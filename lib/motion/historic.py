@@ -38,6 +38,12 @@ class Historic:
 		if sdcard.SdCard.mount():
 			return sdcard.SdCard.get_mountpoint()
 		return None
+	@staticmethod
+	def is_sd_mounted():
+		""" Indicates if the sd card is mounted """
+		if sdcard.SdCard.mount():
+			return sdcard.SdCard.get_mountpoint()
+		return None
 
 	@staticmethod
 	async def add_motion(path, name, image, info):

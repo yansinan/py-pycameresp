@@ -46,7 +46,8 @@ class MotionConfig(jsonconfig.JsonConfig):
 
 		# Notify motion detection or problem to save on sd card
 		self.notify = True
-
+		# need save?
+		self.save_image =  True if Historic.is_sd_mounted() else False
 		# Notify motion state change
 		self.notify_state = True
 
@@ -308,7 +309,7 @@ class Motion:
 				result = (image.get_message(), image)
 
 				# Save image to sdcard
-				if await image.save() is False:
+				if (self.config.save_image is True) and (await image.save() is False):
 					if self.config.notify:
 						await Notifier.notify(lang.failed_to_save)
 			else:
